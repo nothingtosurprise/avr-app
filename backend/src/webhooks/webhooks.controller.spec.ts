@@ -68,12 +68,19 @@ describe('WebhooksController', () => {
       'agent-1',
     );
     expect(errorSpy).toHaveBeenCalledWith(
-      'Failed to forward webhook',
-      expect.any(Error),
+      expect.stringContaining(
+        `Failed to forward webhook uuid=${event.uuid} agentId=agent-1`,
+      ),
+      expect.objectContaining({
+        message: 'Timeout while forwarding webhook',
+      }),
     );
   });
 
   it('should continue processing when forwarding fails after remote disconnect', async () => {
+    const errorSpy = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
     const fetchMock = jest
       .fn()
       .mockRejectedValueOnce(new TypeError('fetch failed: socket hang up'));
@@ -93,6 +100,12 @@ describe('WebhooksController', () => {
     expect(webhooksServiceMock.handleEvent).toHaveBeenCalledWith(
       event,
       'agent-2',
+    );
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `Failed to forward webhook uuid=${event.uuid} agentId=agent-2`,
+      ),
+      expect.objectContaining({ message: 'fetch failed: socket hang up' }),
     );
   });
 
@@ -121,7 +134,9 @@ describe('WebhooksController', () => {
       'agent-3',
     );
     expect(warnSpy).toHaveBeenCalledWith(
-      'Webhook forward failed with status 400',
+      expect.stringContaining(
+        `Webhook forward failed status=400 uuid=${event.uuid} agentId=agent-3`,
+      ),
     );
   });
 
@@ -158,7 +173,9 @@ describe('WebhooksController', () => {
       'agent-4',
     );
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Webhook forward timed out after'),
+      expect.stringContaining(
+        `Webhook forward timed out after 20ms uuid=${event.uuid} agentId=agent-4`,
+      ),
     );
   });
 });

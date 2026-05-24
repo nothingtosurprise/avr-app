@@ -163,17 +163,20 @@ export class WebhooksController {
       });
       if (!response.ok) {
         this.logger.warn(
-          `Webhook forward failed with status ${response.status}`,
+          `Webhook forward failed status=${response.status} uuid=${event.uuid} agentId=${agentId ?? 'n/a'} forwardUrl=${forwardUrl}`,
         );
       }
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
         this.logger.warn(
-          `Webhook forward timed out after ${timeoutMs}ms; continuing local processing`,
+          `Webhook forward timed out after ${timeoutMs}ms uuid=${event.uuid} agentId=${agentId ?? 'n/a'} forwardUrl=${forwardUrl}; continuing local processing`,
         );
         return;
       }
-      this.logger.error('Failed to forward webhook', error as Error);
+      this.logger.error(
+        `Failed to forward webhook uuid=${event.uuid} agentId=${agentId ?? 'n/a'} forwardUrl=${forwardUrl}`,
+        error as Error,
+      );
     } finally {
       clearTimeout(timeout);
     }

@@ -35,7 +35,10 @@ export class AsteriskService {
           return client;
         })
         .catch((error) => {
-          this.logger.error('Failed to connect to ARI', error as Error);
+          this.logger.error(
+            `Failed to connect to ARI url=${url}`,
+            error as Error,
+          );
           this.ariPromise = null;
           throw error;
         });
@@ -51,9 +54,10 @@ export class AsteriskService {
       this.logger.debug(`Reloaded module ${moduleName}`);
     } catch (error) {
       this.logger.error(
-        `Unable to reload module ${moduleName}`,
+        `Unable to reload module moduleName=${moduleName}`,
         error as Error,
       );
+      throw error;
     }
   }
 

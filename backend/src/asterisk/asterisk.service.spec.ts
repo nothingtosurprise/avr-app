@@ -28,12 +28,14 @@ describe('AsteriskService', () => {
       'ECONNREFUSED 127.0.0.1:8088',
     );
     expect(errorSpy).toHaveBeenCalledWith(
-      'Failed to connect to ARI',
-      expect.any(Error),
+      expect.stringMatching(
+        /^Failed to connect to ARI url=http:\/\/avr-asterisk:8088\/ari$/,
+      ),
+      expect.objectContaining({ message: 'ECONNREFUSED 127.0.0.1:8088' }),
     );
   });
 
-  it('logs structured error when module reload fails', async () => {
+  it('logs and propagates error when module reload fails', async () => {
     const errorSpy = jest
       .spyOn(Logger.prototype, 'error')
       .mockImplementation(() => undefined);
@@ -42,11 +44,12 @@ describe('AsteriskService', () => {
       .spyOn(service as any, 'getAri')
       .mockRejectedValueOnce(new Error('ARI unavailable'));
 
-    await (service as any).reloadModule('pbx_config.so');
-
+    await expect(
+      (service as any).reloadModule('pbx_config.so'),
+    ).rejects.toThrow('ARI unavailable');
     expect(errorSpy).toHaveBeenCalledWith(
-      'Unable to reload module pbx_config.so',
-      expect.any(Error),
+      'Unable to reload module moduleName=pbx_config.so',
+      expect.objectContaining({ message: 'ARI unavailable' }),
     );
   });
 

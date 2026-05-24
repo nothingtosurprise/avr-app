@@ -378,6 +378,53 @@ describe('AgentsService', () => {
     );
   });
 
+  it('compensates and marks error when asterisk sync fails after run', async () => {
+    const asrProvider = {
+      id: 'asr-ast',
+      name: 'asr-ast',
+      type: ProviderType.ASR,
+      config: { image: 'repo/asr:latest', env: {} },
+    } as Provider;
+    const agent = {
+      id: 'agent-ast',
+      name: 'Agent Asterisk',
+      mode: AgentMode.PIPELINE,
+      status: AgentStatus.STOPPED,
+      port: 5065,
+      httpPort: 7065,
+      providerAsr: asrProvider,
+      providerLlm: null,
+      providerTts: null,
+      providerSts: null,
+    } as Agent;
+
+    jest.spyOn(service, 'findOne').mockResolvedValue(agent);
+    dockerServiceMock.runContainer.mockResolvedValue('cid-ast');
+    dockerServiceMock.getContainerInspect.mockResolvedValue({
+      State: { Running: true },
+    });
+    asteriskServiceMock.syncDialplan.mockRejectedValueOnce(
+      new Error('ARI unavailable'),
+    );
+    agentRepositoryMock.save.mockImplementation(async (payload) => payload);
+
+    await expect(service.runAgent(agent.id, { env: [] })).rejects.toThrow(
+      'ARI unavailable',
+    );
+
+    expect(dockerServiceMock.stopContainer).toHaveBeenCalledWith(
+      'avr-asr-agent-ast',
+    );
+    expect(agentRepositoryMock.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: AgentStatus.ERROR,
+        failureReason: AgentFailureReason.DEPENDENCY_UNAVAILABLE,
+        failureStatus: AgentFailureStatus.RETRYABLE,
+        retryable: true,
+      }),
+    );
+  });
+
   it('attempts all container stops and marks compensation failure', async () => {
     const agent = {
       id: 'agent-stop',

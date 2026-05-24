@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -20,6 +19,7 @@ import {
   AgentMode,
   AgentStatus,
 } from './agent.entity';
+import { assertAgentLifecycleTransition } from './agent-lifecycle';
 import {
   buildPaginatedResult,
   getPagination,
@@ -51,14 +51,6 @@ export class AgentsService {
   private readonly readinessPollMs = Number(
     process.env.CONNECTOR_READINESS_POLL_MS ?? 1000,
   );
-  private readonly lifecycleTransitions: Record<AgentStatus, AgentStatus[]> = {
-    [AgentStatus.STOPPED]: [AgentStatus.STARTING],
-    [AgentStatus.STARTING]: [AgentStatus.RUNNING, AgentStatus.ERROR],
-    [AgentStatus.RUNNING]: [AgentStatus.STOPPING],
-    [AgentStatus.STOPPING]: [AgentStatus.STOPPED, AgentStatus.ERROR],
-    [AgentStatus.ERROR]: [AgentStatus.STARTING, AgentStatus.STOPPING],
-  };
-
   constructor(
     @InjectRepository(Agent)
     private readonly agentRepository: Repository<Agent>,
@@ -331,19 +323,7 @@ export class AgentsService {
   }
 
   private assertTransition(from: AgentStatus, to: AgentStatus): void {
-    const allowed = this.lifecycleTransitions[from] ?? [];
-    if (allowed.includes(to)) {
-      return;
-    }
-
-    throw new ConflictException({
-      code: 'AGENT_INVALID_TRANSITION',
-      reason: 'Agent lifecycle transition is not allowed',
-      currentStatus: from,
-      targetStatus: to,
-      allowedTransitions: allowed,
-      retryable: false,
-    });
+    assertAgentLifecycleTransition(from, to);
   }
 
   private clearFailureState(agent: Agent): void {
