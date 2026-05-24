@@ -72,6 +72,69 @@ describe('AsteriskService', () => {
     expect(content).toContain('; END AVR-MANAGED');
   });
 
+  it('purges pre-upgrade legacy blocks outside the managed section on provision', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'avr-asterisk-'));
+    process.env.ASTERISK_CONFIG_PATH = tempDir;
+    const service = new AsteriskService();
+    jest.spyOn(service as any, 'reloadModule').mockResolvedValue(undefined);
+
+    const pjsipPath = path.join(tempDir, 'pjsip.conf');
+    await fs.writeFile(
+      pjsipPath,
+      [
+        '[static]',
+        'type=global',
+        '',
+        '; BEGIN phone-1001',
+        '[1001](webrtc-template)',
+        'auth=1001',
+        'aors=1001',
+        '; END phone-1001',
+        '',
+      ].join('\n'),
+    );
+
+    await service.provisionPhone({
+      id: '1001',
+      fullName: 'Legacy User',
+      password: 'secret',
+    } as any);
+
+    const content = await fs.readFile(pjsipPath, 'utf8');
+    expect(content.match(/; BEGIN phone-1001/g)).toHaveLength(1);
+    expect(content).toContain('; BEGIN AVR-MANAGED');
+    expect(content).toContain('[static]');
+  });
+
+  it('purges pre-upgrade legacy blocks on remove', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'avr-asterisk-'));
+    process.env.ASTERISK_CONFIG_PATH = tempDir;
+    const service = new AsteriskService();
+    jest.spyOn(service as any, 'reloadModule').mockResolvedValue(undefined);
+
+    const pjsipPath = path.join(tempDir, 'pjsip.conf');
+    await fs.writeFile(
+      pjsipPath,
+      [
+        '; BEGIN phone-1003',
+        '[1003](webrtc-template)',
+        '; END phone-1003',
+        '',
+        '; BEGIN AVR-MANAGED',
+        '; BEGIN phone-1003',
+        '[1003]',
+        '; END phone-1003',
+        '; END AVR-MANAGED',
+        '',
+      ].join('\n'),
+    );
+
+    await service.removePhone('1003');
+
+    const content = await fs.readFile(pjsipPath, 'utf8');
+    expect(content).not.toMatch(/; BEGIN phone-1003/);
+  });
+
   it('fails fast when managed section contains unmanaged lines', async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'avr-asterisk-'));
     process.env.ASTERISK_CONFIG_PATH = tempDir;

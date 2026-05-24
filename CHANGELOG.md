@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.5.4] - 2026-05-24
+
+### Fixed
+- Fixed duplicate telephony config blocks after upgrade by purging legacy `; BEGIN {id}` / `; END {id}` marker regions outside the `AVR-MANAGED` section on trunk, phone, and number upsert/remove ([AVR-186](https://github.com/agentvoiceresponse/avr-app/issues/186)).
+- Removed unused `manager.conf` write path from Asterisk provisioning; `manager.conf` remains seed/static AMI only (extensions and pjsip are managed at runtime).
+
 ## [1.5.3] - 2026-05-24
 
 ### Added

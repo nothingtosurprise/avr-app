@@ -17,7 +17,6 @@ export class AsteriskService {
     process.env.ASTERISK_CONFIG_PATH || '/app/asterisk';
   private readonly extensionsPath = path.join(this.basePath, 'extensions.conf');
   private readonly pjsipPath = path.join(this.basePath, 'pjsip.conf');
-  private readonly managerPath = path.join(this.basePath, 'manager.conf');
   private readonly trunksPath = path.join(this.basePath, 'pjsip.conf');
 
   private async getAri(): Promise<Client> {
@@ -112,7 +111,10 @@ export class AsteriskService {
   ) {
     await this.ensureFile(filePath);
     const content = await fs.readFile(filePath, 'utf8');
-    const sections = this.parseManagedSection(content);
+    const sections = this.stripLegacyBlocksOutsideManaged(
+      this.parseManagedSection(content),
+      identifier,
+    );
     const [beginMarker, endMarker] = this.getMarkers(identifier);
     const blockWithMarkers = `${beginMarker}\n${block}\n${endMarker}\n`;
     const regex = new RegExp(
@@ -144,7 +146,10 @@ export class AsteriskService {
   private async removeBlock(filePath: string, identifier: string) {
     await this.ensureFile(filePath);
     const content = await fs.readFile(filePath, 'utf8');
-    const sections = this.parseManagedSection(content);
+    const sections = this.stripLegacyBlocksOutsideManaged(
+      this.parseManagedSection(content),
+      identifier,
+    );
     const [beginMarker, endMarker] = this.getMarkers(identifier);
     const regex = new RegExp(
       `${this.escapeRegex(beginMarker)}[\\s\\S]*?${this.escapeRegex(endMarker)}(?:\\r?\\n|$)`,
@@ -170,6 +175,26 @@ export class AsteriskService {
 
   private getMarkers(identifier: string): [string, string] {
     return [`; BEGIN ${identifier}`, `; END ${identifier}`];
+  }
+
+  private getBlockRegex(identifier: string): RegExp {
+    const [beginMarker, endMarker] = this.getMarkers(identifier);
+    return new RegExp(
+      `${this.escapeRegex(beginMarker)}[\\s\\S]*?${this.escapeRegex(endMarker)}(?:\\r?\\n|$)`,
+      'g',
+    );
+  }
+
+  private stripLegacyBlocksOutsideManaged(
+    sections: { prefix: string; managedContent: string; suffix: string },
+    identifier: string,
+  ): { prefix: string; managedContent: string; suffix: string } {
+    const regex = this.getBlockRegex(identifier);
+    return {
+      prefix: sections.prefix.replace(regex, ''),
+      managedContent: sections.managedContent,
+      suffix: sections.suffix.replace(regex, ''),
+    };
   }
 
   private parseManagedSection(content: string): {
