@@ -12,6 +12,7 @@ import {
   AgentStatus,
 } from './agent.entity';
 import { AgentsService } from './agents.service';
+import { ProviderReadinessTimeoutError } from './provider-readiness.errors';
 
 describe('AgentsService', () => {
   let service: AgentsService;
@@ -241,10 +242,15 @@ describe('AgentsService', () => {
     jest.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(20000);
 
     await expect(service.runAgent(agent.id, { env: [] })).rejects.toThrow(
-      'readiness timeout',
+      ProviderReadinessTimeoutError,
     );
     expect(agentRepositoryMock.save).toHaveBeenCalledWith(
-      expect.objectContaining({ status: AgentStatus.ERROR }),
+      expect.objectContaining({
+        status: AgentStatus.ERROR,
+        failureReason: AgentFailureReason.DEPENDENCY_UNAVAILABLE,
+        failureStatus: AgentFailureStatus.RETRYABLE,
+        retryable: true,
+      }),
     );
   });
 

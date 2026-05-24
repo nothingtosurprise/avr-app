@@ -25,6 +25,7 @@ This matrix captures contract and failure behavior for provider runtime boundari
 ## Handoff
 
 Branch-ready artifacts for Staff Engineer review:
+- [AVR-135 connector compatibility matrix](./AVR-135-connector-compatibility-matrix-2026-05-11.md) (STS image/env contracts + readiness policy)
 - `backend/src/providers/provider-contracts.ts`
 - `backend/src/providers/providers.service.ts`
 - `backend/src/providers/providers.service.spec.ts`

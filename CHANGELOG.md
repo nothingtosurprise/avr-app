@@ -5,6 +5,7 @@ All notable changes to this project are documented in this file.
 ## [1.5.3] - 2026-05-24
 
 ### Added
+- Added Phase A connector compatibility matrix and failure policy (`backend/docs/AVR-135-connector-compatibility-matrix-2026-05-11.md`) with STS image/env contracts, readiness timeout policy, and unit-test evidence mapping.
 - Added backend provisioning consistency primitives and contract helpers to keep provider, trunk, phone, and number synchronization behavior aligned.
 - Added backend unit and integration coverage for provisioning synchronization flows, webhook forwarding failure handling, and Asterisk service behavior.
 - Added frontend VoiceOps cockpit modules, API error resolution helpers, and Vitest-based frontend test coverage.
@@ -15,6 +16,7 @@ All notable changes to this project are documented in this file.
 - Updated frontend toolchain metadata (`package.json` and lockfile) to include the new test and support modules shipped with this release.
 
 ### Fixed
+- Fixed connector readiness timeout being classified as terminal configuration error; timeouts now persist `dependency_unavailable` with `retryable=true` per AVR-137 trust-boundary matrix.
 - Fixed concurrent `runAgent` / `stopAgent` requests racing on agent lifecycle transitions by using optimistic status updates before Docker operations.
 
 ## [1.5.2] - 2026-05-10

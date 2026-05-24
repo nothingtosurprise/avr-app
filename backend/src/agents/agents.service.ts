@@ -26,6 +26,7 @@ import {
   PaginatedResult,
   PaginationQuery,
 } from '../common/pagination';
+import { ProviderReadinessTimeoutError } from './provider-readiness.errors';
 
 @Injectable()
 export class AgentsService {
@@ -385,6 +386,10 @@ export class AgentsService {
   }
 
   private isRetryableLifecycleFailure(error: unknown): boolean {
+    if (error instanceof ProviderReadinessTimeoutError) {
+      return true;
+    }
+
     if (error instanceof BadRequestException) {
       return false;
     }
@@ -406,6 +411,10 @@ export class AgentsService {
     error: unknown,
     operation: 'run' | 'stop',
   ): AgentFailureReason {
+    if (error instanceof ProviderReadinessTimeoutError) {
+      return AgentFailureReason.DEPENDENCY_UNAVAILABLE;
+    }
+
     if (error instanceof BadRequestException) {
       return AgentFailureReason.CONFIGURATION_INVALID;
     }
@@ -602,8 +611,10 @@ export class AgentsService {
       await this.sleep(this.readinessPollMs);
     }
 
-    throw new BadRequestException(
-      `Provider ${providerName} (${type}) readiness timeout after ${this.readinessTimeoutMs}ms`,
+    throw new ProviderReadinessTimeoutError(
+      providerName,
+      type,
+      this.readinessTimeoutMs,
     );
   }
 
