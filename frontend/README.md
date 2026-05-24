@@ -42,12 +42,27 @@ npm run start:dev  # Start Next.js dev server
 npm run build      # Create production build
 npm run start      # Run production server
 npm run lint       # Run lint checks
+npm run lint:i18n  # Check EN/IT dictionary key parity
 npm run clean      # Remove .next artifacts
+```
+
+## CI quality gate
+
+Pull requests that touch `frontend/**` run `.github/workflows/frontend-quality-gate.yml` (lint + production build). Pushes to `main` with the same path filter also run the workflow. Match these locally before pushing:
+
+```bash
+npm run lint && npm run build
 ```
 
 ## Internationalization
 
 Translations live under `lib/i18n`. Update the English and Italian dictionaries whenever adding new navigation items or UI copy.
+
+### Frontend lanes and parity control
+
+- Lane A (UI surface): copy or view updates in `app/(protected)/*` and `components/*` only.
+- Lane B (localization source of truth): every new or changed key must be mirrored in both `lib/i18n/en.ts` and `lib/i18n/it.ts` with identical key paths.
+- Lane C (parity control): `scripts/check-i18n-parity.mjs` runs via `npm run lint:i18n` and is included in `npm run lint`.
 
 ## Additional resources
 

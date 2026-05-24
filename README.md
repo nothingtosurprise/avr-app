@@ -58,7 +58,7 @@ cd backend && npm run lint && npm test
 cd frontend && npm run lint && npm run build
 ```
 
-CI for this repository currently builds and pushes Docker images on `main`, but does not run lint/tests for both projects. Validate locally before pushing.
+CI runs path-scoped quality gates on pull requests: `backend-quality-gate.yml` (lint + unit tests) and `frontend-quality-gate.yml` (lint + build). The `main` deploy workflow still builds and pushes Docker images only. Validate locally before pushing (see commands above).
 
 See `backend/README.md` and `frontend/README.md` for full details.
 
