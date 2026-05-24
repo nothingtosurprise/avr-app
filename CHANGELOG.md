@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [1.5.3] - 2026-05-11
+## [1.5.3] - 2026-05-24
 
 ### Added
 - Added backend provisioning consistency primitives and contract helpers to keep provider, trunk, phone, and number synchronization behavior aligned.
@@ -13,6 +13,9 @@ All notable changes to this project are documented in this file.
 - Updated backend service logic for agents, providers, trunks, phones, numbers, webhooks, and Asterisk integration to support release lane governance and operational consistency.
 - Updated protected frontend pages, app shell, API client/auth handling, and i18n dictionaries (`en` and `it`) for the new operational UX.
 - Updated frontend toolchain metadata (`package.json` and lockfile) to include the new test and support modules shipped with this release.
+
+### Fixed
+- Fixed concurrent `runAgent` / `stopAgent` requests racing on agent lifecycle transitions by using optimistic status updates before Docker operations.
 
 ## [1.5.2] - 2026-05-10
 

@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AsteriskService } from '../asterisk/asterisk.service';
@@ -21,6 +21,7 @@ describe('AgentsService', () => {
     findAndCount: jest.fn(),
     findOne: jest.fn(),
     delete: jest.fn(),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
   };
   const providerRepositoryMock = {
     findOne: jest.fn(),
@@ -55,6 +56,70 @@ describe('AgentsService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('rejects concurrent runAgent when optimistic STOPPED→STARTING loses the race', async () => {
+    const asrProvider = {
+      id: 'asr-race',
+      name: 'asr-race',
+      type: ProviderType.ASR,
+      config: { image: 'repo/asr:latest', env: {} },
+    } as Provider;
+    const staleAgent = {
+      id: 'agent-race',
+      name: 'Agent Race',
+      mode: AgentMode.PIPELINE,
+      status: AgentStatus.STOPPED,
+      port: 5070,
+      httpPort: 7070,
+      providerAsr: asrProvider,
+      providerLlm: null,
+      providerTts: null,
+      providerSts: null,
+    } as Agent;
+    const currentAgent = {
+      ...staleAgent,
+      status: AgentStatus.STARTING,
+    } as Agent;
+
+    jest.spyOn(service, 'findOne').mockResolvedValueOnce(staleAgent);
+    agentRepositoryMock.update.mockResolvedValueOnce({ affected: 0 });
+    agentRepositoryMock.findOne.mockResolvedValueOnce(currentAgent);
+
+    await expect(
+      service.runAgent('agent-race', { env: [] }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(dockerServiceMock.runContainer).not.toHaveBeenCalled();
+    expect(agentRepositoryMock.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects concurrent stopAgent when optimistic RUNNING→STOPPING loses the race', async () => {
+    const staleAgent = {
+      id: 'agent-stop-race',
+      name: 'Agent Stop Race',
+      mode: AgentMode.PIPELINE,
+      status: AgentStatus.RUNNING,
+      port: 5080,
+      httpPort: 7080,
+      providerAsr: null,
+      providerLlm: null,
+      providerTts: null,
+      providerSts: null,
+    } as Agent;
+    const currentAgent = {
+      ...staleAgent,
+      status: AgentStatus.STOPPING,
+    } as Agent;
+
+    jest.spyOn(service, 'findOne').mockResolvedValueOnce(staleAgent);
+    agentRepositoryMock.update.mockResolvedValueOnce({ affected: 0 });
+    agentRepositoryMock.findOne.mockResolvedValueOnce(currentAgent);
+
+    await expect(service.stopAgent('agent-stop-race')).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(dockerServiceMock.stopContainer).not.toHaveBeenCalled();
+    expect(agentRepositoryMock.save).not.toHaveBeenCalled();
   });
 
   it('marks error and cleans up when startup fails after first provider', async () => {

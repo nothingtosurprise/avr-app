@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { DockerService } from '../docker/docker.service';
 import { AsteriskService } from '../asterisk/asterisk.service';
 import { Provider, ProviderType } from '../providers/provider.entity';
@@ -175,7 +175,16 @@ export class AgentsService {
 
   async runAgent(id: string, runAgentDto: RunAgentDto) {
     const agent = await this.findOne(id);
-    this.assertTransition(agent.status, AgentStatus.STARTING);
+    const res = await this.agentRepository.update(
+      {
+        id: agent.id,
+        status: In([AgentStatus.STOPPED, AgentStatus.ERROR]),
+      },
+      { status: AgentStatus.STARTING },
+    );
+    if (!res.affected) {
+      await this.assertTransitionFromDb(agent.id, AgentStatus.STARTING);
+    }
     agent.status = AgentStatus.STARTING;
     this.clearFailureState(agent);
     await this.agentRepository.save(agent);
@@ -275,7 +284,13 @@ export class AgentsService {
 
   async stopAgent(id: string): Promise<Agent> {
     const agent = await this.findOne(id);
-    this.assertTransition(agent.status, AgentStatus.STOPPING);
+    const res = await this.agentRepository.update(
+      { id: agent.id, status: In([AgentStatus.RUNNING, AgentStatus.ERROR]) },
+      { status: AgentStatus.STOPPING },
+    );
+    if (!res.affected) {
+      await this.assertTransitionFromDb(agent.id, AgentStatus.STOPPING);
+    }
     agent.status = AgentStatus.STOPPING;
     await this.agentRepository.save(agent);
 
@@ -299,6 +314,19 @@ export class AgentsService {
       await this.agentRepository.save(agent);
       throw error;
     }
+  }
+
+  private async assertTransitionFromDb(
+    agentId: string,
+    target: AgentStatus,
+  ): Promise<void> {
+    const current = await this.agentRepository.findOne({
+      where: { id: agentId },
+    });
+    if (!current) {
+      throw new NotFoundException('Agent not found');
+    }
+    this.assertTransition(current.status, target);
   }
 
   private assertTransition(from: AgentStatus, to: AgentStatus): void {
